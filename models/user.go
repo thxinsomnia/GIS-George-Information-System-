@@ -1,0 +1,15 @@
+package models
+
+import "github.com/google/uuid"
+
+
+type User struct {
+	SoldierId uuid   `json:"soldierid" gorm:"primaryKey"`
+	Name      string `json:"name" gorm:"type:varchar(100);not null"`
+	Email     string `json:"email" gorm:"type:varchar(100);not null"`
+	Password  string `json:"password" gorm:"type:varchar(100)"`
+	Activity  int64  `json:"activitypoint" gorm:"type:int;not null"`
+	CreatedAt string `json:"created_at" gorm:"timestamp;not null"`
+	Status    bool   `json:"status" gorm:"type:boolean;not null"`
+	Role      string `json:"role" gorm:"type:varchar(50);not null"`
+}
