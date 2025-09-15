@@ -3,9 +3,10 @@ package config
 import (
 	"log"
 	"os"
+	"fmt"
 
-	"github.com/supabase-community/supabase-go"
 	"github.com/joho/godotenv"
+	"github.com/supabase-community/supabase-go"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -13,29 +14,34 @@ import (
 var DB *gorm.DB
 
 func ConnectDatabase() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	godotenv.Load() // Load .env file
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-        log.Fatal("Database URL is Not Set in Environment Variables")
-    }
-	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("Failed to Connect to Database: %v", err)
-	}
+	// 1. Get each variable from the .env file
+	dbUser := os.Getenv("user")
+	dbPass := os.Getenv("password")
+	dbHost := os.Getenv("host")
+	dbPort := os.Getenv("port")
+	dbName := os.Getenv("dbname")
 
-    log.Println("Database Connection Successful.")
+	// 2. Construct the DSN string for the Connection Pooler
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=require prefer_simple_protocol=true",
+		dbHost, dbUser, dbPass, dbName, dbPort)
+
+	// 3. Connect using the constructed DSN
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database!")
+	}
+	
 	DB = db
+	log.Println("Database connection successful via Connection Pooler.")
 }
 
 var SupabaseClient *supabase.Client
 
 // Fungsi untuk inisialisasi client (panggil sekali saat aplikasi start)
 func InitSupabase() {
-	supabaseURL := os.Getenv("SUPABASE_URL")
+	supabaseURL := os.Getenv("DATABASE_URL")
 	supabaseKey := os.Getenv("SUPABASE_KEY")
 	client, err := supabase.NewClient(supabaseURL, supabaseKey, nil)
 	if err != nil {
@@ -43,3 +49,4 @@ func InitSupabase() {
 	}
 	SupabaseClient = client
 }
+
