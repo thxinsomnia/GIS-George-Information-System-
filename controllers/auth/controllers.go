@@ -1,13 +1,17 @@
 package auth
 
 import (
-	"net/http"
-	"github.com/gin-gonic/gin"
 	"GIS/config"
 	"GIS/models"
-	"gorm.io/gorm"
 	"errors"
+	"net/http"
+	"strings"
+	"log"
+
+	"github.com/gin-gonic/gin"
 	"github.com/supabase-community/gotrue-go/types"
+	"gorm.io/gorm"
+
 )
 
 type LoginPayload struct {
@@ -15,7 +19,7 @@ type LoginPayload struct {
     Password string `json:"password" binding:"required"`
 }
 
-func LoginHandler(c *gin.Context) {
+func Login(c *gin.Context) {
 	var payload LoginPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email dan password dibutuhkan"})
@@ -49,7 +53,7 @@ type RegistrationPayload struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
-func RegisterAndActivateHandler(c *gin.Context) {
+func ActivateAccount(c *gin.Context) {
 	var payload RegistrationPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
@@ -60,7 +64,7 @@ func RegisterAndActivateHandler(c *gin.Context) {
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		// 1. Verifikasi NAMA di tabel USERS, pastikan belum aktif
 		var user models.User
-		if err := tx.Where("name = ? AND is_active = ?", payload.Name, false).First(&user).Error; err != nil {
+		if err := tx.Where("name = ? AND status = ?", payload.Name, false).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				// Nama tidak ada ATAU akun sudah aktif
 				return errors.New("Nama tidak terdaftar atau akun sudah diaktifkan")
@@ -69,27 +73,33 @@ func RegisterAndActivateHandler(c *gin.Context) {
 		}
 
 		requestBody := types.SignupRequest{
-		Email:    payload.Email,
-		Password: payload.Password,
-	}
+			Email:    payload.Email,
+			Password: payload.Password,
+		}
 
 		// 2. Buat user di Supabase Auth dengan EMAIL dan PASSWORD
 		newUser, err := config.SupabaseClient.Auth.Signup(requestBody)
 			
 		if err != nil {
-			// Jika error, kemungkinan email sudah terdaftar di Supabase Auth
-			return errors.New("Email sudah digunakan, silakan pilih yang lain")
+			// 3. Check if the error is specifically about a duplicate user
+			log.Println("Detailed signup error:", err)
+    		if strings.Contains(err.Error(), "User already registered") {
+        		return errors.New("Email sudah digunakan, silakan pilih yang lain")
+    		}
+    
+			// For all other errors, return a more general message
+			return errors.New("Gagal mendaftarkan pengguna, terjadi kesalahan server")
 		}
 
 		// 3. Update baris di tabel UserS yang ditemukan tadi
 		updateData := models.User{
 			Status: true,          // Set status aktif
 			Email:    payload.Email, 
-			SoldierId:       newUser.User.ID,    // Sinkronkan ID dengan Supabase Auth
+			Id:       newUser.User.ID,    // Sinkronkan ID dengan Supabase Auth
 		}
 		
 		// Gunakan ID unik dari profil yang ditemukan untuk update yang lebih aman
-		result := tx.Model(&models.User{}).Where("id = ?", user.SoldierId).Updates(updateData)
+		result := tx.Model(&models.User{}).Where("id = ?", user.Id).Updates(updateData)
 		if result.Error != nil {
 			return result.Error
 		}
