@@ -6,3 +6,6 @@ type Type struct {
 	Point    string `json:"points" gorm:"type:int;not null"`
 	CreatedAt string `json:"created_at" gorm:"type:timestamp;not null"`
 }
+
+func (Type) TableName() string {
+	return "event_type"}

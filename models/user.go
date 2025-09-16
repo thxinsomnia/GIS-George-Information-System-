@@ -12,4 +12,5 @@ type User struct {
 	CreatedAt string     `json:"created_at" gorm:"timestamp;not null"`
 	Status    bool       `json:"status" gorm:"type:boolean;not null"`
 	Role      string     `json:"role" gorm:"type:varchar(50);not null"`
+	TotalValor int64      `json:"total_valor" gorm:"type:bigint;not null"`
 }
