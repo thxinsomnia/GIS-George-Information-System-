@@ -5,6 +5,7 @@ import (
 	"GIS/config"
 	"GIS/controllers/auth"
 	"GIS/middlewares"
+	"GIS/controllers/attendances"
 	"github.com/gin-contrib/cors"
 	"log"
 	"os"
@@ -31,7 +32,7 @@ func main() {
 	api := router.Group("/api")
 	api.Use(middlewares.AuthMiddleware())
 	{
-		
+		api.POST("/attendance", attendances.Attendance)
 	}
 
 	// 5. Jalankan Server

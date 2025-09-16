@@ -28,7 +28,10 @@ func ConnectDatabase() {
 		dbHost, dbUser, dbPass, dbName, dbPort)
 
 	// 3. Connect using the constructed DSN
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+    DSN: dsn,
+    PreferSimpleProtocol: true, // disables prepared statement cache
+}), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database!")
 	}
@@ -42,7 +45,7 @@ var SupabaseClient *supabase.Client
 // Fungsi untuk inisialisasi client (panggil sekali saat aplikasi start)
 func InitSupabase() {
 	supabaseURL := os.Getenv("DATABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_KEY")
+	supabaseKey := os.Getenv("SUPABASE_SECRET_KEY")
 	client, err := supabase.NewClient(supabaseURL, supabaseKey, nil)
 	if err != nil {
 		panic("Cannot initialize Supabase client")

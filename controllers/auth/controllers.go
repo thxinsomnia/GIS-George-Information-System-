@@ -22,7 +22,7 @@ type LoginPayload struct {
 func Login(c *gin.Context) {
 	var payload LoginPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email dan password dibutuhkan"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Fill all the required field! " + err.Error()})
 		return
 	}
 
@@ -34,13 +34,13 @@ func Login(c *gin.Context) {
 
 	// Jika ada error dari Supabase (misal, password salah), kirim response Unauthorized
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email atau Password tidak sesuai"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Wrong email or password! " + err.Error()})
 		return
 	}
 
 	// 3. Jika berhasil, Supabase akan memberikan token. Kirim token ini ke client.
 	c.JSON(http.StatusOK, gin.H{
-		"message":      "Login berhasil",
+		"message":      "Login successful",
 		"access_token": response.AccessToken, // Ini adalah JWT dari Supabase
 		"user_id":      response.User.ID,
 	})
@@ -56,7 +56,7 @@ type RegistrationPayload struct {
 func ActivateAccount(c *gin.Context) {
 	var payload RegistrationPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
 		return
 	}
 
@@ -67,7 +67,7 @@ func ActivateAccount(c *gin.Context) {
 		if err := tx.Where("name = ? AND status = ?", payload.Name, false).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				// Nama tidak ada ATAU akun sudah aktif
-				return errors.New("Nama tidak terdaftar atau akun sudah diaktifkan")
+				return errors.New("name not registered or account already activated")
 			}
 			return err // Error database lainnya
 		}
@@ -84,11 +84,11 @@ func ActivateAccount(c *gin.Context) {
 			// 3. Check if the error is specifically about a duplicate user
 			log.Println("Detailed signup error:", err)
     		if strings.Contains(err.Error(), "User already registered") {
-        		return errors.New("Email sudah digunakan, silakan pilih yang lain")
+        		return errors.New("Email already in use, please choose another email")
     		}
     
 			// For all other errors, return a more general message
-			return errors.New("Gagal mendaftarkan pengguna, terjadi kesalahan server")
+			return errors.New("Failed to register user, server error occurred")
 		}
 
 		// 3. Update baris di tabel UserS yang ditemukan tadi
@@ -117,5 +117,5 @@ func ActivateAccount(c *gin.Context) {
     return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Akun berhasil diaktifkan! Silakan login."})
+	c.JSON(http.StatusOK, gin.H{"message": "Account successfully activated! Please login."})
 }
