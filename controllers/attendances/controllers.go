@@ -1,16 +1,44 @@
 package attendances
 
 import (
-	"errors"
-	"log"
 	"GIS/config"
 	"GIS/models"
+	"errors"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+func updateUserRank(tx *gorm.DB, userID uuid.UUID) error {
+	var user models.User
+	// Get the user's current valor and rank
+	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+		return err
+	}
+
+	var newRank models.Rank
+	// Find the highest rank the user qualifies for
+	err := tx.Where("total_valor <= ?", user.TotalValor).
+		Order("total_valor desc").
+		First(&newRank).Error
+	if err != nil {
+		return err
+	}
+
+	// If their new rank is different from their current one, update it
+	if user.RankID != int64(newRank.Id) {
+		if err := tx.Model(&user).Update("ranks", newRank.Id).Error; err != nil {
+			return err
+		}
+		log.Printf("User %s has been promoted to %s!", userID, newRank.Name)
+	}
+
+	return nil
+}
 
 // Custom participant struct for the payload
 type ParticipantPayloadByName struct {
@@ -92,6 +120,10 @@ func Attendance(c *gin.Context) {
 				return result.Error
 			}
 
+			if err := updateUserRank(tx, userID); err != nil {
+			return err // If rank-up fails, the whole transaction fails
+			}
+
 			// Check for rank-up
 			// if err := checkAndUpdateUserRank(tx, participant.UserID); err != nil {
 			// 	return err
@@ -107,5 +139,32 @@ func Attendance(c *gin.Context) {
 		return
 	}
 
+
 	c.JSON(http.StatusOK, gin.H{"message": "Event created and attendance recorded successfully"})
+}
+
+
+func GetUserHistory(c *gin.Context) {
+	// Get the user ID that the middleware placed in the context
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	var userHistory []models.Attendance
+
+	// Query the attendances table for records matching the user's ID.
+	// Use Preload("Event") to also fetch the details of each event.
+	err := config.DB.Preload("Event").
+		Where("soldier_id = ?", userID).
+		Order("created_at desc").
+		Find(&userHistory).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user history"})
+		return
+	}
+
+	c.JSON(http.StatusOK, userHistory)
 }

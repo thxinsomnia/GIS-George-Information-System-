@@ -27,12 +27,13 @@ func main() {
 
 
 	router.POST("/login", auth.Login)
-	router.POST("/aktivasi", auth.ActivateAccount)
+	router.POST("/activate", auth.ActivateAccount)
 
 	api := router.Group("/api")
 	api.Use(middlewares.AuthMiddleware())
 	{
 		api.POST("/attendance", attendances.Attendance)
+		api.GET("/attendance", attendances.GetUserHistory)
 	}
 
 	// 5. Jalankan Server

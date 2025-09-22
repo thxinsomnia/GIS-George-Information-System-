@@ -119,3 +119,5 @@ func ActivateAccount(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Account successfully activated! Please login."})
 }
+
+
